@@ -1,13 +1,19 @@
 name: Windows build
 
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      test-filter:
+        description: "Optional mocha --grep pattern. Empty runs the full suite."
+        required: false
+        default: ""
+        type: string
 
 jobs:
   build:
     name: Node ${{ matrix.node-version }}
     runs-on: windows-latest
+    timeout-minutes: 30
 
     strategy:
       matrix:
@@ -23,10 +29,21 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Pin npm registry to the release date
+        shell: bash
+        run: |
+          npm config set registry https://time-machines-npm.sealsecurity.io/
+          npm config set //time-machines-npm.sealsecurity.io/:_authToken=2024-08-30T00:00:00.000000Z
+
       - name: Install
         run: |
           npm ci
 
       - name: Run Tests
+        shell: bash
         run: |
-          npm test
+          if [ -n "${{ inputs.test-filter }}" ]; then
+            npm test -- --grep "${{ inputs.test-filter }}"
+          else
+            npm test
+          fi
